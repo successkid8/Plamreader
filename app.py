@@ -479,7 +479,7 @@ st.markdown(
         flex-shrink: 0;
     }
     
-    /* Cards & Reports */
+    /* Enhanced Cards & Reports */
     .app-card, .report-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
@@ -512,14 +512,143 @@ st.markdown(
         font-size: 1.25rem;
         font-weight: 700;
         color: var(--neutral-900);
-        margin-bottom: var(--space-3);
+        margin-bottom: var(--space-4);
         padding-left: var(--space-4);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
     }
     
     .card-body {
         color: var(--neutral-700);
         line-height: 1.7;
         padding-left: var(--space-4);
+    }
+    
+    .card-body.formatted {
+        padding: 0;
+    }
+    
+    /* Enhanced List Formatting */
+    .formatted-list {
+        list-style: none;
+        padding: 0;
+        margin: var(--space-2) 0;
+    }
+    
+    .list-item {
+        padding: var(--space-2) var(--space-4);
+        margin: var(--space-1) 0;
+        background: var(--neutral-50);
+        border-left: 3px solid var(--accent-emerald);
+        border-radius: var(--radius-md);
+        transition: all 0.3s ease;
+    }
+    
+    .list-item:hover {
+        background: var(--neutral-100);
+        transform: translateX(4px);
+    }
+    
+    .highlight {
+        color: var(--accent-emerald);
+        font-weight: 600;
+        background: rgba(16, 185, 129, 0.1);
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Enhanced Section Formatting */
+    .card-body h3 {
+        color: var(--neutral-800);
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: var(--space-4) 0 var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        background: var(--neutral-100);
+        border-radius: var(--radius-md);
+        border-left: 4px solid var(--accent-emerald);
+    }
+    
+    .card-body h2 {
+        color: white;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: var(--space-6) 0 var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: var(--neutral-800);
+        border-radius: var(--radius-lg);
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .report-card.professional {
+        background: var(--neutral-50);
+        border: 2px solid var(--neutral-300);
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .report-card.professional h2 {
+        background: var(--neutral-900);
+        color: white;
+        padding: var(--space-4);
+        margin: 0 0 var(--space-4) 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .report-card.professional h3 {
+        background: var(--neutral-200);
+        color: var(--neutral-800);
+        padding: var(--space-2) var(--space-3);
+        margin: var(--space-3) 0 var(--space-2) 0;
+        font-size: 1rem;
+        font-weight: 600;
+        border-left: 4px solid var(--neutral-600);
+    }
+    
+    /* Structured Content Styling */
+    .app-card.enhanced {
+        border: 2px solid var(--accent-emerald);
+        box-shadow: var(--shadow-xl);
+    }
+    
+    .app-card.enhanced::before {
+        background: var(--gradient-cool);
+        width: 6px;
+    }
+    
+    .card-body p {
+        margin: var(--space-2) 0;
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Mobile-optimized formatting */
+    @media (max-width: 768px) {
+        .list-item {
+            padding: var(--space-3) var(--space-3);
+            font-size: 0.95rem;
+        }
+        
+        .card-body h3 {
+            font-size: 1rem;
+            padding: var(--space-2);
+        }
+        
+        .card-body h2 {
+            font-size: 1.2rem;
+            padding: var(--space-2) var(--space-3);
+        }
+        
+        .highlight {
+            padding: var(--space-1);
+            font-size: 0.9rem;
+        }
     }
     
     /* Media Grid */
@@ -1502,17 +1631,24 @@ def render_card(title: str, body: str) -> None:
     
     # Format the body content properly
     if '<p>' in body or '<div>' in body or '<ul>' in body:
-        # Already formatted HTML
+        # Already formatted HTML - enhance it
         formatted_body = body
+        
+        # Improve list formatting
+        formatted_body = formatted_body.replace('<ul>', '<ul class="formatted-list">')
+        formatted_body = formatted_body.replace('<li>', '<li class="list-item">')
+        formatted_body = formatted_body.replace('<strong>', '<span class="highlight">')
+        formatted_body = formatted_body.replace('</strong>', '</span>')
+        
     else:
         # Convert markdown to HTML
         formatted_body = format_report_content(body)
     
     st.markdown(
         f"""
-        <div class="app-card">
+        <div class="app-card enhanced">
             <div class="card-title">{clean_title}</div>
-            <div class="card-body">{formatted_body}</div>
+            <div class="card-body formatted">{formatted_body}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1635,25 +1771,19 @@ def render_report(reading: PalmReading) -> None:
     ])
 
     with overview_tab:
-        st.markdown("### Quick Summary")
-        render_card("At a Glance", section_body(sections, "At a Glance"))
-        render_card("Your Unique Path", section_body(sections, "Your Path"))
+        st.markdown("### Professional Summary")
+        render_card("Executive Summary", section_body(sections, "Executive Summary"))
+        render_card("Personality Profile", section_body(sections, "Personality Profile & Strengths"))
 
     with lines_tab:
-        st.markdown("### Detailed Line Analysis")
-        line_sections = matching_sections(sections, ("line", "heart", "head", "life", "fate", "sun"))
-        if not line_sections:
-            line_sections = {"Your Palm Lines": section_body(sections, "Your Palm Lines")}
-        for title, body in line_sections.items():
-            render_card(title, body)
+        st.markdown("### Professional Palm Line Analysis")
+        render_card("Major Line Analysis", section_body(sections, "Major Line Analysis"))
+        render_card("Mount Development", section_body(sections, "Mount Development Analysis"))
 
     with insights_tab:
-        st.markdown("### Personal Insights & Guidance")
-        insight_sections = matching_sections(sections, ("strength", "challenge", "love", "career", "guidance", "means"))
-        if not insight_sections:
-            insight_sections = {"What This Means For You": section_body(sections, "What This Means For You")}
-        for title, body in insight_sections.items():
-            render_card(title, body)
+        st.markdown("### Professional Life Analysis")
+        render_card("Relationship & Compatibility", section_body(sections, "Relationship & Compatibility Analysis"))
+        render_card("Career & Financial Prospects", section_body(sections, "Career & Financial Prospects"))
 
     with artwork_tab:
         st.markdown("### Visual Elements")
@@ -1665,12 +1795,15 @@ def render_report(reading: PalmReading) -> None:
             if reading.contour_png:
                 st.image(reading.contour_png, caption="🎨 AI Enhancement", use_container_width=True)
         
-        render_card("Palm Print Analysis", section_body(sections, "Your Palm Print"))
+        render_card("Technical Analysis", section_body(sections, "Executive Summary"))
 
     with full_tab:
-        st.markdown("### Complete Reading Report")
-        st.markdown('<div class="report-card">', unsafe_allow_html=True)
-        st.markdown(reading.report_markdown)
+        st.markdown("### Complete Professional Report")
+        render_card("Strategic Recommendations", section_body(sections, "Strategic Recommendations"))
+        
+        st.markdown("### Full Technical Analysis")
+        st.markdown('<div class="report-card professional">', unsafe_allow_html=True)
+        st.markdown(reading.report_markdown, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Enhanced download section

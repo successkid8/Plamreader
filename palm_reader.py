@@ -56,72 +56,147 @@ Keep issues and tips short and user-friendly.
 
 
 REPORT_PROMPT = """
-Analyze the palm in this image and create a comprehensive palm reading report.
+Analyze this palm image and create a comprehensive professional palm reading report in the style of a premium paid consultation.
 
-Create a professional palm reading guide using clean HTML formatting. Use proper section symbols and structure. 
+**PROFESSIONAL REPORT REQUIREMENTS:**
+- NO emojis or casual symbols - professional business format only
+- Use precise palmistry terminology and technical analysis
+- Provide specific, actionable insights based on visible features
+- Structure like a professional consultation document
+- Use proper HTML formatting for clean presentation
 
-**IMPORTANT FORMATTING RULES:**
-- Use HTML tags, NOT markdown
-- Use section symbols: ⭐ 📏 ✋ 💫 🎯 ✨ 🛤️
-- No ** bold markdown - use <strong> tags
-- Use <div class="section"> for each section
-- Use <h2>, <h3> for headings
-- Use <ul>, <li> for lists
-- Use <p> for paragraphs
-
-Generate sections with these exact symbols and structure:
+**REQUIRED PROFESSIONAL STRUCTURE:**
 
 <div class="section">
-<h2>⭐ At a Glance</h2>
-<p>[Brief overview of the palm characteristics]</p>
+<h2>EXECUTIVE SUMMARY</h2>
+<ul>
+<li><strong>Palm Classification:</strong> [Square/Spatulate/Conic/Pointed palm type with technical details]</li>
+<li><strong>Dominant Characteristics:</strong> [List 3 most significant palmistry features observed]</li>
+<li><strong>Primary Insights:</strong> [Key personality and life path indicators identified]</li>
+<li><strong>Consultation Date:</strong> [Current analysis timestamp]</li>
+</ul>
 </div>
 
 <div class="section">
-<h2>📏 Your Palm Lines</h2>
-<h3>♥️ Heart Line</h3>
-<p>[Analysis of heart line]</p>
-<h3>🧠 Head Line</h3>
-<p>[Analysis of head line]</p>
-<h3>🌱 Life Line</h3>
-<p>[Analysis of life line]</p>
-<h3>🎭 Fate Line</h3>
-<p>[Analysis of fate line if visible]</p>
+<h2>MAJOR LINE ANALYSIS</h2>
+<h3>Heart Line Assessment</h3>
+<ul>
+<li><strong>Technical Position:</strong> [Precise location - high/medium/low placement]</li>
+<li><strong>Line Quality:</strong> [Deep/moderate/light, continuous/broken, length measurement]</li>
+<li><strong>Emotional Profile:</strong> [Specific relationship and emotional patterns indicated]</li>
+<li><strong>Professional Interpretation:</strong> [What this reveals about emotional intelligence and relationships]</li>
+</ul>
+
+<h3>Head Line Evaluation</h3>
+<ul>
+<li><strong>Direction & Slope:</strong> [Straight/curved angle and significance]</li>
+<li><strong>Line Characteristics:</strong> [Depth, clarity, any branches or markings]</li>
+<li><strong>Cognitive Style:</strong> [Analytical vs intuitive thinking patterns]</li>
+<li><strong>Decision-Making Profile:</strong> [How you process information and make choices]</li>
+</ul>
+
+<h3>Life Line Analysis</h3>
+<ul>
+<li><strong>Arc Pattern:</strong> [Wide/narrow curve around Venus mount]</li>
+<li><strong>Line Strength:</strong> [Vitality and energy levels indicated]</li>
+<li><strong>Energy Distribution:</strong> [Physical and mental stamina patterns]</li>
+<li><strong>Health Indicators:</strong> [General vitality and resilience factors]</li>
+</ul>
+
+<h3>Fate Line Investigation</h3>
+<ul>
+<li><strong>Presence & Clarity:</strong> [Strong/weak/absent with implications]</li>
+<li><strong>Origin Point:</strong> [Starting location and meaning]</li>
+<li><strong>Career Trajectory:</strong> [Professional path and goal orientation]</li>
+<li><strong>Life Purpose Alignment:</strong> [Direction and focus in life goals]</li>
+</ul>
 </div>
 
 <div class="section">
-<h2>✋ Palm Features</h2>
-<p>[Analysis of mounts, palm shape, texture]</p>
+<h2>MOUNT DEVELOPMENT ANALYSIS</h2>
+<ul>
+<li><strong>Venus Mount (Passion & Relationships):</strong> [Development level and personality implications]</li>
+<li><strong>Jupiter Mount (Leadership & Ambition):</strong> [Prominence and leadership capabilities]</li>
+<li><strong>Saturn Mount (Discipline & Structure):</strong> [Organization and responsibility traits]</li>
+<li><strong>Apollo Mount (Creativity & Recognition):</strong> [Artistic abilities and public recognition potential]</li>
+<li><strong>Mercury Mount (Communication & Business):</strong> [Communication skills and commercial aptitude]</li>
+<li><strong>Mars Mounts (Action & Courage):</strong> [Passive and active Mars development]</li>
+</ul>
 </div>
 
 <div class="section">
-<h2>💫 What This Means For You</h2>
-<h3>💪 Strengths</h3>
-<ul><li>[List strengths]</li></ul>
-<h3>⚖️ Challenges</h3>
-<ul><li>[List challenges]</li></ul>
-<h3>💝 Love & Relationships</h3>
-<p>[Relationship insights]</p>
-<h3>🎯 Career & Life Path</h3>
-<p>[Career guidance]</p>
+<h2>PERSONALITY PROFILE & STRENGTHS</h2>
+<h3>Core Personality Traits</h3>
+<ul>
+<li><strong>Primary Temperament:</strong> [Based on palm shape and mount development]</li>
+<li><strong>Communication Style:</strong> [How you interact with others professionally and personally]</li>
+<li><strong>Leadership Qualities:</strong> [Natural authority and influence patterns]</li>
+<li><strong>Creative Expression:</strong> [Artistic and innovative capabilities]</li>
+</ul>
+
+<h3>Professional Strengths</h3>
+<ul>
+<li><strong>Natural Talents:</strong> [Specific abilities indicated by palm features]</li>
+<li><strong>Work Style Preferences:</strong> [Independent vs collaborative tendencies]</li>
+<li><strong>Problem-Solving Approach:</strong> [Analytical vs intuitive methods]</li>
+<li><strong>Success Indicators:</strong> [Factors that drive achievement and recognition]</li>
+</ul>
 </div>
 
 <div class="section">
-<h2>✨ Guidance</h2>
-<p>[Personal guidance and recommendations]</p>
+<h2>RELATIONSHIP & COMPATIBILITY ANALYSIS</h2>
+<ul>
+<li><strong>Emotional Expression Style:</strong> [How you show and receive affection]</li>
+<li><strong>Relationship Priorities:</strong> [What you value most in partnerships]</li>
+<li><strong>Compatibility Factors:</strong> [Personality types that complement your nature]</li>
+<li><strong>Communication Patterns:</strong> [How you handle conflict and express needs]</li>
+<li><strong>Long-term Relationship Potential:</strong> [Commitment style and partnership approach]</li>
+</ul>
 </div>
 
 <div class="section">
-<h2>🛤️ Your Path Forward</h2>
-<p>[Future focus and direction]</p>
+<h2>CAREER & FINANCIAL PROSPECTS</h2>
+<ul>
+<li><strong>Ideal Career Fields:</strong> [Specific industries and roles aligned with your palmistry profile]</li>
+<li><strong>Entrepreneurial Potential:</strong> [Business ownership and leadership capabilities]</li>
+<li><strong>Financial Management Style:</strong> [Approach to money and resource management]</li>
+<li><strong>Professional Growth Areas:</strong> [Skills to develop for career advancement]</li>
+<li><strong>Success Timeline:</strong> [Periods of opportunity and achievement potential]</li>
+</ul>
 </div>
 
-**Requirements:**
-- Use only HTML formatting with proper tags
-- Include section symbols as shown
-- Be specific to visible palm features
-- Keep content premium and polished
-- Include entertainment disclaimer
-- Focus on visible palm characteristics only
+<div class="section">
+<h2>STRATEGIC RECOMMENDATIONS</h2>
+<h3>Immediate Focus Areas (Next 90 Days)</h3>
+<ul>
+<li><strong>Priority Development:</strong> [Specific skill or trait to enhance immediately]</li>
+<li><strong>Relationship Focus:</strong> [How to improve personal connections]</li>
+<li><strong>Professional Action:</strong> [Career move or skill development to pursue]</li>
+</ul>
+
+<h3>Medium-Term Strategy (6-18 Months)</h3>
+<ul>
+<li><strong>Personal Growth:</strong> [Character development and self-improvement focus]</li>
+<li><strong>Career Advancement:</strong> [Professional goals and positioning strategy]</li>
+<li><strong>Life Balance:</strong> [Areas requiring attention for optimal well-being]</li>
+</ul>
+
+<h3>Long-Term Vision (2-5 Years)</h3>
+<ul>
+<li><strong>Life Direction:</strong> [Major life path and purpose alignment]</li>
+<li><strong>Legacy Building:</strong> [How to create lasting impact and meaning]</li>
+<li><strong>Personal Fulfillment:</strong> [Keys to long-term satisfaction and happiness]</li>
+</ul>
+</div>
+
+**ANALYSIS STANDARDS:**
+- Base all interpretations on classical palmistry principles
+- Provide specific, actionable guidance for real-world application  
+- Use professional consultation language and terminology
+- Include technical palmistry observations with practical meanings
+- Maintain professional disclaimer about entertainment purpose
+- Focus on empowerment and personal development
+- Avoid generic statements - personalize to visible palm characteristics
 """.strip()
 
 
@@ -463,7 +538,7 @@ def parse_validation_response(text: str) -> PalmPhotoValidation:
 
 
 def split_report_sections(report: str) -> dict[str, str]:
-    """Split HTML/markdown report into sections based on headings."""
+    """Split professional HTML report into sections based on headings."""
     sections: dict[str, str] = {}
     
     # First try to split by HTML sections with div class="section"
@@ -473,14 +548,14 @@ def split_report_sections(report: str) -> dict[str, str]:
             # Extract title from h2 tag and remove HTML
             title_match = re.search(r'<h2>(.*?)</h2>', section_html)
             if title_match:
-                title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()  # Remove HTML tags and emojis
-                title = re.sub(r'[^\w\s]', '', title).strip()  # Remove emojis and special chars
+                title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()  # Remove HTML tags
+                # Keep professional titles as-is, just clean HTML
                 content = section_html.replace(title_match.group(0), '').strip()
                 sections[title] = content
     
     # Fallback: Split by markdown/HTML headers
     if not sections:
-        current_title = "Overview"
+        current_title = "Executive Summary"
         current_lines: list[str] = []
 
         for line in report.splitlines():
@@ -496,11 +571,6 @@ def split_report_sections(report: str) -> dict[str, str]:
                     current_title = md_match.group(1).strip()
                 else:
                     current_title = re.sub(r'<[^>]+>', '', html_match.group(1)).strip()
-                
-                # Clean title of emojis and special characters for key
-                clean_title = re.sub(r'[^\w\s]', '', current_title).strip()
-                if clean_title:
-                    current_title = clean_title
                     
                 current_lines = []
             else:
