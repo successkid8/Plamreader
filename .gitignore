@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# API Keys and Secrets
+.env
+*.key
+secrets/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Images (optional - comment out if you want to include sample images)
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
+
+# Documents
+*.pdf
+*.doc
+*.docx
