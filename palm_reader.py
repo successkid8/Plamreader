@@ -4,12 +4,17 @@ import base64
 import io
 import json
 import re
-import numpy as np
 from dataclasses import dataclass
 from typing import Any
 from xml.sax.saxutils import escape
 
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance, ImageOps
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
 
 
 DEFAULT_VISION_MODEL = "gpt-5.5"
@@ -264,19 +269,16 @@ def process_palm_to_blackwhite(image_bytes: bytes) -> bytes:
         image = Image.open(io.BytesIO(image_bytes))
         image = image.convert('RGB')
         
-        # Convert to numpy array for processing
-        img_array = np.array(image)
-        
         # Convert to grayscale
-        gray = Image.fromarray(img_array).convert('L')
+        gray = image.convert('L')
         
         # Enhance contrast to make lines more visible
         enhancer = ImageEnhance.Contrast(gray)
-        contrast_img = enhancer.enhance(2.0)
+        contrast_img = enhancer.enhance(2.5)
         
         # Apply edge detection using PIL filters
         # First apply a slight blur to reduce noise
-        blurred = contrast_img.filter(ImageFilter.GaussianBlur(radius=0.5))
+        blurred = contrast_img.filter(ImageFilter.GaussianBlur(radius=0.8))
         
         # Apply edge enhancement
         edges = blurred.filter(ImageFilter.FIND_EDGES)
@@ -285,74 +287,64 @@ def process_palm_to_blackwhite(image_bytes: bytes) -> bytes:
         inverted = ImageOps.invert(edges)
         
         # Apply threshold to create pure black and white
-        threshold = 128
+        threshold = 100
         bw_image = inverted.point(lambda x: 255 if x > threshold else 0, mode='1')
         
-        # Convert back to RGB for further processing
+        # Convert back to RGB
         bw_rgb = bw_image.convert('RGB')
         
-        # Create a new image with white background
-        processed = Image.new('RGB', bw_rgb.size, 'white')
-        
-        # Convert black pixels to lines, ignore gray areas
+        # Additional processing: enhance lines and remove noise
+        final_image = Image.new('RGB', bw_rgb.size, 'white')
         width, height = bw_rgb.size
-        pixels = bw_rgb.load()
-        new_pixels = processed.load()
         
+        # Get pixel data
+        pixels = bw_rgb.load()
+        new_pixels = final_image.load()
+        
+        # Process each pixel
         for y in range(height):
             for x in range(width):
                 r, g, b = pixels[x, y]
-                # If pixel is dark enough, make it black (palm line)
-                if r < 100 and g < 100 and b < 100:
+                # If pixel is dark (palm line), make it pure black
+                if r < 200:  # More lenient threshold
                     new_pixels[x, y] = (0, 0, 0)  # Black line
                 else:
                     new_pixels[x, y] = (255, 255, 255)  # White background
         
-        # Apply morphological operations to clean up the lines
-        # Convert to grayscale for morphological operations
-        final_gray = processed.convert('L')
+        # Apply additional filtering to clean up the image
+        final_gray = final_image.convert('L')
         
-        # Apply closing to connect broken lines
-        kernel_size = 2
-        final_processed = final_gray.filter(ImageFilter.MinFilter(size=kernel_size))
-        final_processed = final_processed.filter(ImageFilter.MaxFilter(size=kernel_size))
+        # Remove small noise spots
+        cleaned = final_gray.filter(ImageFilter.MedianFilter(size=3))
         
-        # Convert back to RGB and ensure pure black/white
-        final_rgb = final_processed.convert('RGB')
-        final_pixels = final_rgb.load()
-        width, height = final_rgb.size
-        
-        for y in range(height):
-            for x in range(width):
-                r, g, b = final_pixels[x, y]
-                if r < 128:
-                    final_pixels[x, y] = (0, 0, 0)  # Pure black
-                else:
-                    final_pixels[x, y] = (255, 255, 255)  # Pure white
+        # Convert back to RGB for final output
+        final_result = cleaned.convert('RGB')
         
         # Save to bytes
         output = io.BytesIO()
-        final_rgb.save(output, format='PNG', optimize=True)
+        final_result.save(output, format='PNG', optimize=True)
         return output.getvalue()
         
     except Exception as e:
-        # Fallback: create a simple processed version
+        # Simple fallback processing
         try:
             image = Image.open(io.BytesIO(image_bytes))
             # Simple grayscale with high contrast
             gray = image.convert('L')
-            enhancer = ImageEnhance.Contrast(gray)
-            high_contrast = enhancer.enhance(3.0)
             
-            # Convert to black and white
-            bw = high_contrast.point(lambda x: 0 if x < 128 else 255, '1')
+            # Enhance contrast
+            enhancer = ImageEnhance.Contrast(gray)
+            high_contrast = enhancer.enhance(2.0)
+            
+            # Simple threshold to black and white
+            bw = high_contrast.point(lambda x: 0 if x < 140 else 255, '1')
             bw_rgb = bw.convert('RGB')
             
             output = io.BytesIO()
             bw_rgb.save(output, format='PNG')
             return output.getvalue()
         except:
-            # Ultimate fallback: return original
+            # Return original if all processing fails
             return image_bytes
 
 
