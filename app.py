@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import io
+import json
 import os
+import pickle
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional, Tuple
 
 import streamlit as st
@@ -1609,6 +1613,170 @@ def enhance_image(image_bytes: bytes, auto_enhance: bool = True, rotate: int = 0
         return image_bytes
 
 
+def get_user_ip() -> str:
+    """Get user's IP address with fallback methods"""
+    try:
+        # Try to get real IP from Streamlit Cloud headers
+        if hasattr(st, '_get_session_info'):
+            session_info = st._get_session_info()
+            if session_info and hasattr(session_info, 'ws') and session_info.ws:
+                if hasattr(session_info.ws, 'request'):
+                    request = session_info.ws.request
+                    # Check for real IP in various headers
+                    forwarded_for = request.headers.get('X-Forwarded-For')
+                    if forwarded_for:
+                        return forwarded_for.split(',')[0].strip()
+                    
+                    real_ip = request.headers.get('X-Real-IP')
+                    if real_ip:
+                        return real_ip.strip()
+                    
+                    # Fallback to remote address
+                    if hasattr(request, 'remote_addr'):
+                        return request.remote_addr
+        
+        # Fallback for local development or if headers not available
+        return "127.0.0.1"
+    except Exception:
+        # Ultimate fallback
+        return "unknown_ip"
+
+
+def get_ip_hash(ip: str) -> str:
+    """Create a hash of the IP for privacy-safe storage"""
+    return hashlib.sha256(f"{ip}_palmora_salt".encode()).hexdigest()[:16]
+
+
+def get_cache_dir() -> Path:
+    """Get or create cache directory for storing reports"""
+    cache_dir = Path(".palmora_cache")
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir
+
+
+def load_ip_usage() -> dict:
+    """Load IP usage tracking data"""
+    cache_dir = get_cache_dir()
+    usage_file = cache_dir / "ip_usage.json"
+    
+    try:
+        if usage_file.exists():
+            with open(usage_file, 'r') as f:
+                data = json.load(f)
+                # Clean old entries (older than 24 hours)
+                cutoff_time = (datetime.now() - timedelta(hours=24)).isoformat()
+                cleaned_data = {
+                    ip_hash: info for ip_hash, info in data.items() 
+                    if info.get('timestamp', '') > cutoff_time
+                }
+                return cleaned_data
+    except Exception:
+        pass
+    
+    return {}
+
+
+def save_ip_usage(usage_data: dict) -> None:
+    """Save IP usage tracking data"""
+    try:
+        cache_dir = get_cache_dir()
+        usage_file = cache_dir / "ip_usage.json"
+        
+        with open(usage_file, 'w') as f:
+            json.dump(usage_data, f)
+    except Exception:
+        pass  # Fail silently if can't save
+
+
+def check_ip_limit(ip: str) -> Tuple[bool, Optional[str]]:
+    """Check if IP has already used their report limit"""
+    ip_hash = get_ip_hash(ip)
+    usage_data = load_ip_usage()
+    
+    if ip_hash in usage_data:
+        user_data = usage_data[ip_hash]
+        timestamp = datetime.fromisoformat(user_data['timestamp'])
+        
+        # Check if within 24-hour window
+        if datetime.now() - timestamp < timedelta(hours=24):
+            time_remaining = timedelta(hours=24) - (datetime.now() - timestamp)
+            hours = int(time_remaining.total_seconds() // 3600)
+            minutes = int((time_remaining.total_seconds() % 3600) // 60)
+            return False, f"{hours}h {minutes}m"
+    
+    return True, None
+
+
+def record_ip_usage(ip: str, report_id: str) -> None:
+    """Record that an IP has used their report"""
+    ip_hash = get_ip_hash(ip)
+    usage_data = load_ip_usage()
+    
+    usage_data[ip_hash] = {
+        'timestamp': datetime.now().isoformat(),
+        'report_id': report_id,
+        'count': usage_data.get(ip_hash, {}).get('count', 0) + 1
+    }
+    
+    save_ip_usage(usage_data)
+
+
+def get_cached_report(ip: str) -> Optional[dict]:
+    """Get cached report for IP if exists"""
+    try:
+        ip_hash = get_ip_hash(ip)
+        cache_dir = get_cache_dir()
+        report_file = cache_dir / f"report_{ip_hash}.pkl"
+        
+        if report_file.exists():
+            # Check if file is less than 24 hours old
+            file_time = datetime.fromtimestamp(report_file.stat().st_mtime)
+            if datetime.now() - file_time < timedelta(hours=24):
+                with open(report_file, 'rb') as f:
+                    return pickle.load(f)
+    except Exception:
+        pass
+    
+    return None
+
+
+def save_cached_report(ip: str, report_data: dict) -> str:
+    """Save report to cache and return report ID"""
+    try:
+        ip_hash = get_ip_hash(ip)
+        report_id = f"RPT_{ip_hash}_{int(time.time())}"
+        
+        cache_dir = get_cache_dir()
+        report_file = cache_dir / f"report_{ip_hash}.pkl"
+        
+        report_data['report_id'] = report_id
+        report_data['timestamp'] = datetime.now().isoformat()
+        
+        with open(report_file, 'wb') as f:
+            pickle.dump(report_data, f)
+        
+        return report_id
+    except Exception:
+        return f"RPT_ERROR_{int(time.time())}"
+
+
+def cleanup_old_cache() -> None:
+    """Clean up cache files older than 24 hours"""
+    try:
+        cache_dir = get_cache_dir()
+        cutoff_time = time.time() - (24 * 3600)  # 24 hours ago
+        
+        for file_path in cache_dir.glob("*.pkl"):
+            if file_path.stat().st_mtime < cutoff_time:
+                file_path.unlink(missing_ok=True)
+                
+        for file_path in cache_dir.glob("*.json"):
+            if file_path.stat().st_mtime < cutoff_time:
+                file_path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 def get_client() -> OpenAI | None:
     try:
         secret_key = st.secrets.get("OPENAI_API_KEY", None)
@@ -2081,6 +2249,13 @@ def render_step_2_capture() -> dict:
 
 def render_step_3_analyze(source, vision_model: str, image_model: str) -> dict:
     """Step 3: AI Analysis Configuration and Processing"""
+    
+    # Clean up old cache files first
+    cleanup_old_cache()
+    
+    # Get user's IP and check rate limiting
+    user_ip = get_user_ip()
+    
     st.markdown(
         """
         <div class="step-card">
@@ -2095,6 +2270,67 @@ def render_step_3_analyze(source, vision_model: str, image_model: str) -> dict:
         """,
         unsafe_allow_html=True,
     )
+    
+    # Check if user has cached report
+    cached_report = get_cached_report(user_ip)
+    if cached_report:
+        st.success("📋 **Found Your Previous Report** - Loading your existing palm reading analysis...")
+        
+        # Display cached report info
+        st.info(f"""
+        **Your Report:** {cached_report.get('report_id', 'Unknown ID')}  
+        **Generated:** {datetime.fromisoformat(cached_report['timestamp']).strftime('%Y-%m-%d %H:%M')}  
+        **Status:** Complete and Ready
+        """)
+        
+        # Restore the reading to session state
+        from palm_reader import PalmReading
+        st.session_state["reading"] = PalmReading(
+            report_markdown=cached_report['report'],
+            palm_photo_jpeg=cached_report.get('palm_photo'),
+            contour_png=cached_report.get('contour_image')
+        )
+        st.session_state.analysis_complete = True
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("📄 View Your Report", type="primary", use_container_width=True):
+                st.session_state.current_step = 4
+                st.rerun()
+        with col2:
+            if st.button("🔄 New Analysis", use_container_width=True):
+                st.warning("⚠️ You can only generate one report per 24 hours. Your current report will be replaced.")
+                if st.button("⚠️ Confirm Replace Report", type="secondary", use_container_width=True):
+                    # Clear cache for this IP
+                    try:
+                        ip_hash = get_ip_hash(user_ip)
+                        cache_dir = get_cache_dir()
+                        report_file = cache_dir / f"report_{ip_hash}.pkl"
+                        report_file.unlink(missing_ok=True)
+                    except:
+                        pass
+                    st.rerun()
+        
+        return {"analysis_complete": True, "reading": st.session_state.get("reading")}
+    
+    # Check rate limiting for new analysis
+    can_analyze, time_remaining = check_ip_limit(user_ip)
+    
+    if not can_analyze:
+        st.error(f"""
+        🚫 **Rate Limit Reached**  
+        
+        You have already generated a palm reading report today. 
+        
+        **Next Report Available In:** {time_remaining}  
+        **Reason:** To ensure fair usage and protect against API abuse  
+        **What You Can Do:** Wait for the time limit to reset or use your existing report
+        """)
+        
+        # Show when they can generate next report
+        st.info("💡 **Why This Limit?** We provide professional-quality AI analysis that uses significant computational resources. The 24-hour limit ensures fair access for all users while maintaining service quality.")
+        
+        return {"analysis_complete": False, "reading": None, "rate_limited": True}
     
     # Check if analysis is complete
     if st.session_state.get("analysis_complete", False):
@@ -2222,6 +2458,23 @@ def render_step_3_analyze(source, vision_model: str, image_model: str) -> dict:
             st.session_state["reading"] = reading_result
             st.session_state.analysis_running = False
             st.session_state.analysis_complete = True
+            
+            # Cache the report and record IP usage
+            try:
+                report_data = {
+                    'report': report,
+                    'palm_photo': optimized_bytes,
+                    'contour_image': contour,
+                    'analysis_timestamp': datetime.now().isoformat()
+                }
+                
+                report_id = save_cached_report(user_ip, report_data)
+                record_ip_usage(user_ip, report_id)
+                
+                st.success(f"📋 **Report Generated & Cached** (ID: {report_id[:12]}...)")
+                
+            except Exception as cache_error:
+                st.warning(f"⚠️ Report generated successfully but caching failed: {cache_error}")
             
             st.balloons()
             st.rerun()  # Refresh to show completion state
@@ -2474,10 +2727,13 @@ def main() -> None:
             # Check if analysis is complete or running
             analysis_complete = st.session_state.get("analysis_complete", False)
             analysis_running = st.session_state.get("analysis_running", False)
+            rate_limited = step_result.get("rate_limited", False)
             
             # Only show navigation if not running analysis
             if not analysis_running:
-                navigation = render_step_navigation(3, can_go_next=analysis_complete, can_go_back=True)
+                # Disable next button if rate limited
+                can_go_next = analysis_complete and not rate_limited
+                navigation = render_step_navigation(3, can_go_next=can_go_next, can_go_back=True)
                 
                 if navigation["next"] and analysis_complete:
                     st.session_state.current_step = 4
@@ -2521,12 +2777,34 @@ def main() -> None:
                 st.markdown(f"⚪ {icon} {name}")
         
         st.markdown("---")
+        st.markdown("### 🛡️ Usage Status")
+        
+        # Show rate limiting status
+        user_ip = get_user_ip()
+        can_analyze, time_remaining = check_ip_limit(user_ip)
+        cached_report = get_cached_report(user_ip)
+        
+        if cached_report:
+            st.success("✅ **Report Available**")
+            report_time = datetime.fromisoformat(cached_report['timestamp'])
+            st.write(f"📅 Generated: {report_time.strftime('%Y-%m-%d %H:%M')}")
+        elif can_analyze:
+            st.info("🆕 **Ready for Analysis**")
+            st.write("You can generate your palm reading report.")
+        else:
+            st.warning("⏳ **Rate Limited**")
+            st.write(f"Next report in: {time_remaining}")
+        
+        st.markdown("---")
         st.markdown("### ℹ️ About")
         st.info("""
         **Palmora v2026.1**  
         Professional AI palm reading with step-by-step guidance.
         
-        Each step is designed to ensure the best possible analysis results.
+        **Fair Usage Policy:**  
+        • One report per 24 hours per user  
+        • Reports cached for quick access  
+        • Professional-quality analysis  
         """)
         
         if st.button("🔄 Restart Session", use_container_width=True):
