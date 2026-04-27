@@ -4,11 +4,12 @@ import base64
 import io
 import json
 import re
+import numpy as np
 from dataclasses import dataclass
 from typing import Any
 from xml.sax.saxutils import escape
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter, ImageEnhance, ImageOps
 
 
 DEFAULT_VISION_MODEL = "gpt-5.5"
@@ -181,6 +182,105 @@ def optimize_upload_image(image_bytes: bytes, max_side: int = 1600) -> tuple[byt
     return output.getvalue(), "image/jpeg"
 
 
+def process_palm_to_blackwhite(image_bytes: bytes) -> bytes:
+    """Process palm image to create actual black and white line drawing"""
+    try:
+        # Load the image
+        image = Image.open(io.BytesIO(image_bytes))
+        image = image.convert('RGB')
+        
+        # Convert to numpy array for processing
+        img_array = np.array(image)
+        
+        # Convert to grayscale
+        gray = Image.fromarray(img_array).convert('L')
+        
+        # Enhance contrast to make lines more visible
+        enhancer = ImageEnhance.Contrast(gray)
+        contrast_img = enhancer.enhance(2.0)
+        
+        # Apply edge detection using PIL filters
+        # First apply a slight blur to reduce noise
+        blurred = contrast_img.filter(ImageFilter.GaussianBlur(radius=0.5))
+        
+        # Apply edge enhancement
+        edges = blurred.filter(ImageFilter.FIND_EDGES)
+        
+        # Invert the image (make lines dark, background light)
+        inverted = ImageOps.invert(edges)
+        
+        # Apply threshold to create pure black and white
+        threshold = 128
+        bw_image = inverted.point(lambda x: 255 if x > threshold else 0, mode='1')
+        
+        # Convert back to RGB for further processing
+        bw_rgb = bw_image.convert('RGB')
+        
+        # Create a new image with white background
+        processed = Image.new('RGB', bw_rgb.size, 'white')
+        
+        # Convert black pixels to lines, ignore gray areas
+        width, height = bw_rgb.size
+        pixels = bw_rgb.load()
+        new_pixels = processed.load()
+        
+        for y in range(height):
+            for x in range(width):
+                r, g, b = pixels[x, y]
+                # If pixel is dark enough, make it black (palm line)
+                if r < 100 and g < 100 and b < 100:
+                    new_pixels[x, y] = (0, 0, 0)  # Black line
+                else:
+                    new_pixels[x, y] = (255, 255, 255)  # White background
+        
+        # Apply morphological operations to clean up the lines
+        # Convert to grayscale for morphological operations
+        final_gray = processed.convert('L')
+        
+        # Apply closing to connect broken lines
+        kernel_size = 2
+        final_processed = final_gray.filter(ImageFilter.MinFilter(size=kernel_size))
+        final_processed = final_processed.filter(ImageFilter.MaxFilter(size=kernel_size))
+        
+        # Convert back to RGB and ensure pure black/white
+        final_rgb = final_processed.convert('RGB')
+        final_pixels = final_rgb.load()
+        width, height = final_rgb.size
+        
+        for y in range(height):
+            for x in range(width):
+                r, g, b = final_pixels[x, y]
+                if r < 128:
+                    final_pixels[x, y] = (0, 0, 0)  # Pure black
+                else:
+                    final_pixels[x, y] = (255, 255, 255)  # Pure white
+        
+        # Save to bytes
+        output = io.BytesIO()
+        final_rgb.save(output, format='PNG', optimize=True)
+        return output.getvalue()
+        
+    except Exception as e:
+        # Fallback: create a simple processed version
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+            # Simple grayscale with high contrast
+            gray = image.convert('L')
+            enhancer = ImageEnhance.Contrast(gray)
+            high_contrast = enhancer.enhance(3.0)
+            
+            # Convert to black and white
+            bw = high_contrast.point(lambda x: 0 if x < 128 else 255, '1')
+            bw_rgb = bw.convert('RGB')
+            
+            output = io.BytesIO()
+            bw_rgb.save(output, format='PNG')
+            return output.getvalue()
+        except:
+            # Ultimate fallback: return original
+            return image_bytes
+
+
 def build_contour_prompt(report_markdown: str) -> str:
     return f"{CONTOUR_PROMPT.strip()}\n\nPalm-reading context:\n{report_markdown[:1600]}"
 
@@ -230,24 +330,45 @@ def generate_contour_image(
     image_bytes: bytes | None = None,
     model: str = DEFAULT_IMAGE_MODEL,
 ) -> bytes:
+    """Generate black and white palm line image using actual image processing"""
     if image_bytes:
-        image_file = io.BytesIO(image_bytes)
-        image_file.name = "palm.jpg"
-        response = client.images.edit(
-            model=model,
-            image=image_file,
-            prompt=build_contour_prompt(report_markdown),
-            size="1024x1536",
-        )
-        return base64.b64decode(response.data[0].b64_json)
-
-    response = client.images.generate(
-        model=model,
-        prompt=build_contour_prompt(report_markdown),
-        size="1024x1024",
-    )
-    b64_png = response.data[0].b64_json
-    return base64.b64decode(b64_png)
+        # Use actual image processing instead of AI generation
+        try:
+            # First process the image to black and white lines
+            processed_bytes = process_palm_to_blackwhite(image_bytes)
+            return processed_bytes
+        except Exception as e:
+            # Fallback to AI generation if processing fails
+            try:
+                image_file = io.BytesIO(image_bytes)
+                image_file.name = "palm.jpg"
+                response = client.images.edit(
+                    model=model,
+                    image=image_file,
+                    prompt=build_contour_prompt(report_markdown),
+                    size="1024x1024",
+                )
+                return base64.b64decode(response.data[0].b64_json)
+            except Exception as ai_error:
+                # Ultimate fallback: process with simple method
+                return process_palm_to_blackwhite(image_bytes)
+    else:
+        # Generate from scratch using AI
+        try:
+            response = client.images.generate(
+                model=model,
+                prompt=build_contour_prompt(report_markdown),
+                size="1024x1024",
+            )
+            return base64.b64decode(response.data[0].b64_json)
+        except:
+            # Return a placeholder black and white image
+            placeholder = Image.new('RGB', (512, 512), 'white')
+            draw = ImageDraw.Draw(placeholder)
+            draw.text((50, 50), "Palm processing unavailable", fill='black')
+            output = io.BytesIO()
+            placeholder.save(output, format='PNG')
+            return output.getvalue()
 
 
 def create_pdf_bytes(reading: PalmReading) -> bytes:
