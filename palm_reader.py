@@ -433,11 +433,14 @@ def generate_contour_image(
 
 
 def create_pdf_bytes(reading: PalmReading) -> bytes:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.units import inch
-    from reportlab.platypus import Image as ReportImage
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    # Temporarily disabled - ReportLab doesn't work with Python 3.14
+    return b"PDF generation temporarily disabled during deployment"
+    
+    # from reportlab.lib.pagesizes import letter
+    # from reportlab.lib.styles import getSampleStyleSheet  
+    # from reportlab.lib.units import inch
+    # from reportlab.platypus import Image as ReportImage
+    # from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
     output = io.BytesIO()
     doc = SimpleDocTemplate(
