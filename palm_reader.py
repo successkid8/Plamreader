@@ -265,87 +265,32 @@ def optimize_upload_image(image_bytes: bytes, max_side: int = 1600) -> tuple[byt
 def process_palm_to_blackwhite(image_bytes: bytes) -> bytes:
     """Process palm image to create actual black and white line drawing"""
     try:
+        # For now, just return the original image to avoid PIL issues
+        # TODO: Re-enable advanced processing once deployment is stable
+        return image_bytes
+        
         # Load the image
         image = Image.open(io.BytesIO(image_bytes))
         image = image.convert('RGB')
         
-        # Convert to grayscale
+        # Simple grayscale conversion
         gray = image.convert('L')
         
-        # Enhance contrast to make lines more visible
+        # Basic contrast enhancement
         enhancer = ImageEnhance.Contrast(gray)
-        contrast_img = enhancer.enhance(2.5)
+        high_contrast = enhancer.enhance(2.0)
         
-        # Apply edge detection using PIL filters
-        # First apply a slight blur to reduce noise
-        blurred = contrast_img.filter(ImageFilter.GaussianBlur(radius=0.8))
+        # Simple threshold to black and white
+        bw = high_contrast.point(lambda x: 0 if x < 140 else 255, '1')
+        bw_rgb = bw.convert('RGB')
         
-        # Apply edge enhancement
-        edges = blurred.filter(ImageFilter.FIND_EDGES)
-        
-        # Invert the image (make lines dark, background light)
-        inverted = ImageOps.invert(edges)
-        
-        # Apply threshold to create pure black and white
-        threshold = 100
-        bw_image = inverted.point(lambda x: 255 if x > threshold else 0, mode='1')
-        
-        # Convert back to RGB
-        bw_rgb = bw_image.convert('RGB')
-        
-        # Additional processing: enhance lines and remove noise
-        final_image = Image.new('RGB', bw_rgb.size, 'white')
-        width, height = bw_rgb.size
-        
-        # Get pixel data
-        pixels = bw_rgb.load()
-        new_pixels = final_image.load()
-        
-        # Process each pixel
-        for y in range(height):
-            for x in range(width):
-                r, g, b = pixels[x, y]
-                # If pixel is dark (palm line), make it pure black
-                if r < 200:  # More lenient threshold
-                    new_pixels[x, y] = (0, 0, 0)  # Black line
-                else:
-                    new_pixels[x, y] = (255, 255, 255)  # White background
-        
-        # Apply additional filtering to clean up the image
-        final_gray = final_image.convert('L')
-        
-        # Remove small noise spots
-        cleaned = final_gray.filter(ImageFilter.MedianFilter(size=3))
-        
-        # Convert back to RGB for final output
-        final_result = cleaned.convert('RGB')
-        
-        # Save to bytes
         output = io.BytesIO()
-        final_result.save(output, format='PNG', optimize=True)
+        bw_rgb.save(output, format='PNG')
         return output.getvalue()
         
     except Exception as e:
-        # Simple fallback processing
-        try:
-            image = Image.open(io.BytesIO(image_bytes))
-            # Simple grayscale with high contrast
-            gray = image.convert('L')
-            
-            # Enhance contrast
-            enhancer = ImageEnhance.Contrast(gray)
-            high_contrast = enhancer.enhance(2.0)
-            
-            # Simple threshold to black and white
-            bw = high_contrast.point(lambda x: 0 if x < 140 else 255, '1')
-            bw_rgb = bw.convert('RGB')
-            
-            output = io.BytesIO()
-            bw_rgb.save(output, format='PNG')
-            return output.getvalue()
-        except:
-            # Return original if all processing fails
-            return image_bytes
+        # Return original if processing fails
+        return image_bytes
 
 
 def build_contour_prompt(report_markdown: str) -> str:
