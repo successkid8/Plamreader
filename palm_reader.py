@@ -55,39 +55,114 @@ Keep issues and tips short and user-friendly.
 
 
 REPORT_PROMPT = """
-Just attach a photo of your open palm.
+Analyze the palm in this image and create a comprehensive palm reading report.
 
-Based on my hand I want you to make a complete palm reading guide. Analyze the palm. The style of the guide should be clean and minimal, thin lines, rounded cards, overall very expensive looking.
+Create a professional palm reading guide using clean HTML formatting. Use proper section symbols and structure. 
 
-Focus on the palm.
+**IMPORTANT FORMATTING RULES:**
+- Use HTML tags, NOT markdown
+- Use section symbols: ⭐ 📏 ✋ 💫 🎯 ✨ 🛤️
+- No ** bold markdown - use <strong> tags
+- Use <div class="section"> for each section
+- Use <h2>, <h3> for headings
+- Use <ul>, <li> for lists
+- Use <p> for paragraphs
 
-Create a premium entertainment-only palm reading guide in markdown. Preserve uncertainty: do not claim this is real fortune telling, biometric identity analysis, medical analysis, or professional advice.
+Generate sections with these exact symbols and structure:
 
-    Include:
-- ## At a Glance
-- ## Your Palm Lines
-- ## Your Palm Print
-- ## The Major Lines
-- ## Palm Features
-- ## What This Means For You
-- ## Your Path
+<div class="section">
+<h2>⭐ At a Glance</h2>
+<p>[Brief overview of the palm characteristics]</p>
+</div>
 
-For palm lines, cover heart line, head line, life line, fate line, and sun line if visible. For meanings, include strengths, challenges, love & relationships, career & life path, and guidance.
+<div class="section">
+<h2>📏 Your Palm Lines</h2>
+<h3>♥️ Heart Line</h3>
+<p>[Analysis of heart line]</p>
+<h3>🧠 Head Line</h3>
+<p>[Analysis of head line]</p>
+<h3>🌱 Life Line</h3>
+<p>[Analysis of life line]</p>
+<h3>🎭 Fate Line</h3>
+<p>[Analysis of fate line if visible]</p>
+</div>
 
-Keep the writing specific to visible palm features, polished, minimal, and premium.
+<div class="section">
+<h2>✋ Palm Features</h2>
+<p>[Analysis of mounts, palm shape, texture]</p>
+</div>
+
+<div class="section">
+<h2>💫 What This Means For You</h2>
+<h3>💪 Strengths</h3>
+<ul><li>[List strengths]</li></ul>
+<h3>⚖️ Challenges</h3>
+<ul><li>[List challenges]</li></ul>
+<h3>💝 Love & Relationships</h3>
+<p>[Relationship insights]</p>
+<h3>🎯 Career & Life Path</h3>
+<p>[Career guidance]</p>
+</div>
+
+<div class="section">
+<h2>✨ Guidance</h2>
+<p>[Personal guidance and recommendations]</p>
+</div>
+
+<div class="section">
+<h2>🛤️ Your Path Forward</h2>
+<p>[Future focus and direction]</p>
+</div>
+
+**Requirements:**
+- Use only HTML formatting with proper tags
+- Include section symbols as shown
+- Be specific to visible palm features
+- Keep content premium and polished
+- Include entertainment disclaimer
+- Focus on visible palm characteristics only
 """.strip()
 
 
 CONTOUR_PROMPT = """
-Can you also get my palm print extracted from this photo and present the specular highlights of it in black and white.
+Transform this palm photo into a professional black and white palm analysis diagram.
 
-Create a clean premium black-and-white palm print page from the uploaded palm photo:
-- focus on the palm
-- extract the handprint/palm-print feeling from the source image
-- show ridges, palm lines, and specular highlights in black and white
-- use a clean minimal layout with thin lines and rounded-card editorial style
-- include subtle labels for Heart Line, Head Line, Life Line, Fate Line, and Sun Line where visible
-- no color, no mystical symbols, no clutter
+REQUIREMENTS FOR PALM IMAGE TRANSFORMATION:
+
+1. **Complete Background Removal**: 
+   - Remove ALL background elements
+   - Make background pure white (#FFFFFF)
+   - Keep ONLY the palm and fingers
+
+2. **Professional Palm Line Enhancement**:
+   - Draw clear, bold black lines for major palm lines
+   - Heart Line: Upper curved line across palm
+   - Head Line: Middle horizontal line
+   - Life Line: Curved line around thumb base
+   - Fate Line: Vertical line through palm center (if visible)
+   - Minor lines: Other visible creases and lines
+
+3. **Clean Medical Diagram Style**:
+   - Pure black lines (#000000) on pure white background
+   - Remove all skin texture, color, and shading
+   - High contrast, sharp line definition
+   - Professional palmistry chart appearance
+   - Vector-like clean drawing style
+
+4. **Image Processing Standards**:
+   - Remove fingerprints, skin pores, and texture
+   - Focus only on major palm creases and lines
+   - Make lines bold and clearly visible
+   - Ensure high contrast for easy analysis
+   - Create a clean, medical-grade hand diagram
+
+5. **Final Output**:
+   - Should look like a professional hand analysis chart
+   - Suitable for medical or scientific documentation
+   - Clean enough for report inclusion
+   - Black lines only, no gray or colored elements
+
+Transform the original palm photo into a clinical, professional palm line diagram that clearly shows all major lines for analysis.
 """.strip()
 
 
@@ -207,10 +282,38 @@ def create_pdf_bytes(reading: PalmReading) -> bytes:
         image_stream = io.BytesIO(reading.palm_photo_jpeg)
         story.extend([ReportImage(image_stream, width=3.0 * inch, height=3.0 * inch), Spacer(1, 0.18 * inch)])
 
-    for block in _markdown_blocks(reading.report_markdown):
-        style = styles["Heading2"] if block.startswith("#") else styles["BodyText"]
-        text = escape(block.lstrip("# ")).replace("\n", "<br/>")
-        story.extend([Paragraph(text, style), Spacer(1, 0.09 * inch)])
+    # Parse HTML/Markdown sections for PDF
+    sections = split_report_sections(reading.report_markdown)
+    
+    for title, content in sections.items():
+        # Add section title
+        clean_title = re.sub(r'<[^>]+>', '', title)  # Remove HTML tags
+        clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()  # Remove emojis
+        
+        if clean_title:
+            story.extend([
+                Paragraph(clean_title, styles["Heading2"]), 
+                Spacer(1, 0.12 * inch)
+            ])
+        
+        # Process content
+        if content.strip():
+            # Convert HTML to plain text for PDF
+            clean_content = re.sub(r'<[^>]+>', '', content)  # Remove HTML tags
+            clean_content = clean_content.replace('&nbsp;', ' ').replace('&amp;', '&')
+            clean_content = clean_content.replace('&lt;', '<').replace('&gt;', '>')
+            
+            # Split into paragraphs
+            paragraphs = [p.strip() for p in clean_content.split('\n') if p.strip()]
+            
+            for paragraph in paragraphs:
+                if paragraph:
+                    story.extend([
+                        Paragraph(escape(paragraph), styles["BodyText"]), 
+                        Spacer(1, 0.06 * inch)
+                    ])
+            
+            story.append(Spacer(1, 0.12 * inch))
 
     doc.build(story)
     return output.getvalue()
@@ -238,25 +341,89 @@ def parse_validation_response(text: str) -> PalmPhotoValidation:
     return PalmPhotoValidation(is_valid=is_valid, score=max(0, min(score, 100)), issues=issues, tips=tips)
 
 
-def split_report_sections(markdown: str) -> dict[str, str]:
+def split_report_sections(report: str) -> dict[str, str]:
+    """Split HTML/markdown report into sections based on headings."""
     sections: dict[str, str] = {}
-    current_title = "Overview"
-    current_lines: list[str] = []
+    
+    # First try to split by HTML sections with div class="section"
+    html_sections = re.findall(r'<div class="section">(.*?)</div>', report, re.DOTALL)
+    if html_sections:
+        for section_html in html_sections:
+            # Extract title from h2 tag and remove HTML
+            title_match = re.search(r'<h2>(.*?)</h2>', section_html)
+            if title_match:
+                title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()  # Remove HTML tags and emojis
+                title = re.sub(r'[^\w\s]', '', title).strip()  # Remove emojis and special chars
+                content = section_html.replace(title_match.group(0), '').strip()
+                sections[title] = content
+    
+    # Fallback: Split by markdown/HTML headers
+    if not sections:
+        current_title = "Overview"
+        current_lines: list[str] = []
 
-    for line in markdown.splitlines():
-        match = re.match(r"^\s*#{1,3}\s+(.+?)\s*$", line)
-        if match:
-            if current_lines:
-                sections[current_title] = "\n".join(current_lines).strip()
-            current_title = match.group(1).strip()
-            current_lines = []
-        else:
-            current_lines.append(line)
+        for line in report.splitlines():
+            # Match both markdown and HTML headers
+            md_match = re.match(r"^\s*#{1,3}\s+(.+?)\s*$", line)
+            html_match = re.match(r"^\s*<h[1-3]>(.*?)</h[1-3]>\s*$", line)
+            
+            if md_match or html_match:
+                if current_lines:
+                    sections[current_title] = "\n".join(current_lines).strip()
+                
+                if md_match:
+                    current_title = md_match.group(1).strip()
+                else:
+                    current_title = re.sub(r'<[^>]+>', '', html_match.group(1)).strip()
+                
+                # Clean title of emojis and special characters for key
+                clean_title = re.sub(r'[^\w\s]', '', current_title).strip()
+                if clean_title:
+                    current_title = clean_title
+                    
+                current_lines = []
+            else:
+                current_lines.append(line)
 
-    if current_lines:
-        sections[current_title] = "\n".join(current_lines).strip()
-
+        if current_lines:
+            sections[current_title] = "\n".join(current_lines).strip()
+    
     return {title: body for title, body in sections.items() if body}
+
+
+def format_report_content(content: str) -> str:
+    """Clean and format report content for display."""
+    # If it's already HTML, return as is
+    if '<p>' in content or '<div>' in content or '<ul>' in content:
+        return content
+    
+    # Remove excessive markdown formatting
+    content = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', content)
+    content = re.sub(r'\*(.+?)\*', r'<em>\1</em>', content)
+    
+    # Convert markdown lists to HTML
+    lines = content.split('\n')
+    formatted_lines = []
+    in_list = False
+    
+    for line in lines:
+        line = line.strip()
+        if line.startswith('- '):
+            if not in_list:
+                formatted_lines.append('<ul>')
+                in_list = True
+            formatted_lines.append(f'<li>{line[2:]}</li>')
+        else:
+            if in_list:
+                formatted_lines.append('</ul>')
+                in_list = False
+            if line:
+                formatted_lines.append(f'<p>{line}</p>')
+    
+    if in_list:
+        formatted_lines.append('</ul>')
+    
+    return '\n'.join(formatted_lines)
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:

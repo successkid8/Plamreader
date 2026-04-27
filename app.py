@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import io
 import os
+import re
 import time
 from datetime import datetime
 from typing import Optional, Tuple
@@ -1492,13 +1493,26 @@ def get_client() -> OpenAI | None:
 
 
 def render_card(title: str, body: str) -> None:
-    escaped_title = html.escape(title)
-    escaped_body = html.escape(body).replace("\n", "<br>")
+    # Import the formatting function
+    from palm_reader import format_report_content
+    
+    # Clean the title of any HTML tags and emojis for display
+    clean_title = re.sub(r'<[^>]+>', '', title)
+    clean_title = html.escape(clean_title)
+    
+    # Format the body content properly
+    if '<p>' in body or '<div>' in body or '<ul>' in body:
+        # Already formatted HTML
+        formatted_body = body
+    else:
+        # Convert markdown to HTML
+        formatted_body = format_report_content(body)
+    
     st.markdown(
         f"""
         <div class="app-card">
-            <div class="card-title">{escaped_title}</div>
-            <div class="card-body">{escaped_body}</div>
+            <div class="card-title">{clean_title}</div>
+            <div class="card-body">{formatted_body}</div>
         </div>
         """,
         unsafe_allow_html=True,
